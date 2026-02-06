@@ -256,29 +256,55 @@ function toggleDark(){
 if(localStorage.getItem("darkMode")==="true") document.body.classList.add("dark");
 
 /* ---------- CONFETTI ---------- */
-const confettiCanvas=document.getElementById("confettiCanvas");
-const ctx=confettiCanvas.getContext("2d");
-let confettiParticles=[];
+const confettiCanvas = document.getElementById("confettiCanvas");
+const ctx = confettiCanvas.getContext("2d");
+let confettiParticles = [];
+let confettiActive = false;
 
 function launchConfetti(){
-  confettiCanvas.width=window.innerWidth;
-  confettiCanvas.height=window.innerHeight;
-  confettiParticles=[];
-  for(let i=0;i<100;i++){
-    confettiParticles.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,dx:(Math.random()-0.5)*5,dy:Math.random()*5+2,color:`hsl(${Math.random()*360},100%,50%)`,size:Math.random()*6+4});
-  }
-  animateConfetti();
-}
+  if(confettiActive) return; // prevent stacking
+  confettiActive = true;
 
-function animateConfetti(){
-  ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
-  confettiParticles.forEach(p=>{
-    p.x+=p.dx; p.y+=p.dy;
-    if(p.y>confettiCanvas.height)p.y=0;
-    ctx.fillStyle=p.color;
-    ctx.fillRect(p.x,p.y,p.size,p.size);
-  });
-  requestAnimationFrame(animateConfetti);
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+
+  confettiParticles = [];
+  for(let i=0;i<100;i++){
+    confettiParticles.push({
+      x: Math.random()*window.innerWidth,
+      y: Math.random()*window.innerHeight,
+      dx: (Math.random()-0.5)*5,
+      dy: Math.random()*5+2,
+      color: `hsl(${Math.random()*360},100%,50%)`,
+      size: Math.random()*6+4
+    });
+  }
+
+  let start = null;
+  const duration = 3000; // confetti lasts 3 seconds
+
+  function animate(timestamp){
+    if(!start) start = timestamp;
+    const elapsed = timestamp - start;
+
+    ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+    confettiParticles.forEach(p=>{
+      p.x += p.dx;
+      p.y += p.dy;
+      if(p.y > confettiCanvas.height) p.y = 0;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x,p.y,p.size,p.size);
+    });
+
+    if(elapsed < duration){
+      requestAnimationFrame(animate);
+    } else {
+      ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+      confettiActive = false;
+    }
+  }
+
+  requestAnimationFrame(animate);
 }
 </script>
 </body>
