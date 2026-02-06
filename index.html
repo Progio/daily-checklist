@@ -63,6 +63,23 @@ button{
   font-weight:bold;
 }
 
+.dark input,
+.dark select {
+  background:#2c2c2e;   /* same as card background or slightly darker */
+  color:#f2f2f7;        /* light text */
+  border:1px solid #444; /* optional subtle border */
+}
+
+.dark input::placeholder,
+.dark select::placeholder {
+  color:#aaa;           /* softer placeholder color */
+}
+
+.dark button {
+  background:#4CAF50;  /* you can tweak for contrast */
+  color:#fff;
+}
+
 li{
   list-style:none;
   padding:10px;
