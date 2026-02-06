@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111">
+
+<title>Daily Habits</title>
+
+<style>
+body{
+  font-family:-apple-system,system-ui;
+  margin:0;
+  padding:15px;
+  background:var(--bg);
+  color:var(--text);
+  transition:.3s;
+}
+
+:root{
+  --bg:#fff;
+  --text:#000;
+}
+
+.dark{
+  --bg:#111;
+  --text:#eee;
+}
+
+.app{
+  max-width:500px;
+  margin:auto;
+}
+
+input,select,button{
+  padding:10px;
+  margin:5px 0;
+  width:100%;
+  font-size:16px;
+}
+
+li{
+  padding:8px;
+  border-bottom:1px solid #ccc;
+}
+
+.checked span{
+  text-decoration:line-through;
+  opacity:.6;
+}
+
+small{opacity:.6}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<h2>Daily Checklist</h2>
+<button onclick="toggleDark()">Toggle Dark Mode</button>
+
+<input id="taskInput" placeholder="New habit/task">
+
+<select id="category">
+<option>Work</option>
+<option>Health</option>
+<option>Faith</option>
+<option>Personal</option>
+</select>
+
+<button onclick="addTask()">Add Task</button>
+
+<h3 id="streak"></h3>
+<ul id="list"></ul>
+
+<button onclick="resetDay()">Manual Reset</button>
+<button onclick="setReminder()">Daily Reminder</button>
+
+</div>
+
+<script>
+const KEY="dailyChecklistV2";
+const STREAK="habitStreak";
+const LAST="lastDate";
+
+const list=document.getElementById("list");
+checkNewDay();
+load();
+updateStreak();
+
+function today(){
+  return new Date().toDateString();
+}
+
+/* ---------- DAILY RESET ---------- */
+function checkNewDay(){
+  if(localStorage.getItem(LAST)!==today()){
+    resetDay(true);
+    localStorage.setItem(LAST,today());
+  }
+}
+
+/* ---------- TASKS ---------- */
+function addTask(){
+  const text=document.getElementById("taskInput").value;
+  const cat=document.getElementById("category").value;
+  if(!text) return;
+
+  createTask(text,false,cat);
+  save();
+  taskInput.value="";
+}
+
+function createTask(text,checked,cat){
+  const li=document.createElement("li");
+  if(checked) li.classList.add("checked");
+
+  li.innerHTML=`
+    <input type="checkbox" ${checked?"checked":""}>
+    <span>${text}</span>
+    <small>(${cat})</small>
+    <button onclick="editTask(this)">✏️</button>
+    <button onclick="deleteTask(this)">🗑️</button>
+  `;
+
+  li.querySelector("input").onchange=()=>{
+    li.classList.toggle("checked");
+    save();
+  };
+
+  list.appendChild(li);
+}
+
+function editTask(btn){
+  const span=btn.parentElement.querySelector("span");
+  const newText=prompt("Edit task:",span.textContent);
+  if(newText){
+    span.textContent=newText;
+    save();
+  }
+}
+
+function deleteTask(btn){
+  btn.parentElement.remove();
+  save();
+}
+
+function save(){
+  const tasks=[...list.children].map(li=>({
+    text:li.querySelector("span").textContent,
+    checked:li.classList.contains("checked"),
+    cat:li.querySelector("small").textContent.slice(1,-1)
+  }));
+  localStorage.setItem(KEY,JSON.stringify(tasks));
+}
+
+function load(){
+  const tasks=JSON.parse(localStorage.getItem(KEY)||"[]");
+  tasks.forEach(t=>createTask(t.text,t.checked,t.cat));
+}
+
+/* ---------- RESET + STREAK ---------- */
+function resetDay(auto=false){
+  const completed=[...list.children]
+    .filter(li=>li.classList.contains("checked")).length;
+
+  if(completed>0){
+    let streak=parseInt(localStorage.getItem(STREAK)||0);
+    streak++;
+    localStorage.setItem(STREAK,streak);
+  }
+
+  list.innerHTML="";
+  localStorage.removeItem(KEY);
+
+  if(!auto) alert("New day started");
+  updateStreak();
+}
+
+function updateStreak(){
+  document.getElementById("streak")
+    .textContent="🔥 Streak: "+(localStorage.getItem(STREAK)||0)+" days";
+}
+
+/* ---------- DARK MODE ---------- */
+function toggleDark(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("darkMode",
+    document.body.classList.contains("dark"));
+}
+
+if(localStorage.getItem("darkMode")==="true"){
+  document.body.classList.add("dark");
+}
+
+/* ---------- REMINDER ---------- */
+function setReminder(){
+  if(Notification.permission!=="granted"){
+    Notification.requestPermission();
+  }
+
+  setInterval(()=>{
+    new Notification("Checklist Reminder",{
+      body:"Don't forget today's habits ✔️"
+    });
+  },86400000);
+
+  alert("Daily reminder set (works when app open).");
+}
+
+/* ---------- SERVICE WORKER ---------- */
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+</body>
+</html>
