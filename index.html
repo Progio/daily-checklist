@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
+<title>Gamified Habits</title>
 <link rel="manifest" href="manifest.json">
-<title>Daily Habits</title>
 
 <style>
 :root{
   --bg:#f2f2f7;
-  --card:#ffffff;
+  --card:#fff;
   --text:#111;
   --accent:#4CAF50;
+  --bad:#e53935;
 }
 
 .dark{
@@ -33,7 +33,7 @@ body{
 .app{
   width:100%;
   max-width:480px;
-  padding:20px;
+  padding:15px;
 }
 
 .card{
@@ -43,11 +43,9 @@ body{
   margin-bottom:15px;
 }
 
-h2,h3{
-  margin-top:0;
-}
+h2,h3{margin-top:0;}
 
-input,button,select{
+input,select,button{
   width:100%;
   box-sizing:border-box;
   padding:12px;
@@ -57,29 +55,21 @@ input,button,select{
   font-size:16px;
 }
 
+input, select {background:#e0e0e0;}
+.dark input, .dark select {
+  background:#2c2c2e;
+  color:#f2f2f7;
+  border:1px solid #444;
+}
+.dark input::placeholder, .dark select::placeholder {color:#aaa;}
+
 button{
   background:var(--accent);
   color:white;
   font-weight:bold;
 }
 
-.dark input,
-.dark select {
-  background:#2c2c2e;   /* same as card background or slightly darker */
-  color:#f2f2f7;        /* light text */
-  border:1px solid #444; /* optional subtle border */
-}
-
-.dark input::placeholder,
-.dark select::placeholder {
-  color:#aaa;           /* softer placeholder color */
-}
-
-.dark button {
-  background:#4CAF50;  /* you can tweak for contrast */
-  color:#fff;
-}
-
+ul{padding:0; margin:0;}
 li{
   list-style:none;
   padding:10px;
@@ -87,24 +77,41 @@ li{
   align-items:center;
   justify-content:space-between;
   border-bottom:1px solid #ccc3;
+  border-radius:8px;
+  margin-bottom:5px;
 }
 
-.checked span{
-  text-decoration:line-through;
-  opacity:.6;
-}
+.checked span{text-decoration:line-through; opacity:.6;}
 
 .progress{
   height:10px;
   background:#ccc3;
   border-radius:10px;
   overflow:hidden;
+  margin-top:5px;
 }
 
 .bar{
   height:100%;
   background:var(--accent);
   width:0%;
+  transition: width .3s;
+}
+
+button.delete{
+  background:#e53935;
+  margin-left:8px;
+}
+button.edit{
+  background:#2196F3;
+  margin-left:5px;
+}
+
+.motivation{
+  text-align:center;
+  margin-top:5px;
+  font-weight:bold;
+  color:var(--accent);
 }
 </style>
 </head>
@@ -113,46 +120,54 @@ li{
 <div class="app">
 
 <div class="card">
-<h2>Daily Habits</h2>
+<h2>Gamified Habits</h2>
 <button onclick="toggleDark()">Toggle Dark Mode</button>
 <h3 id="streak"></h3>
 <h3 id="points"></h3>
-
-<div class="progress">
-<div class="bar" id="bar"></div>
-</div>
+<div class="progress"><div class="bar" id="totalBar"></div></div>
+<div class="motivation" id="motivation"></div>
 </div>
 
 <div class="card">
-<h3>Good Habits</h3>
+<h3>Good Habits ✅</h3>
 <input id="goodInput" placeholder="New habit/task">
 <button onclick="addHabit('good')">Add</button>
 <ul id="goodList"></ul>
+<div class="progress"><div class="bar" id="goodBar"></div></div>
 </div>
 
 <div class="card">
 <h3>Habits To Avoid 🚫</h3>
-<input id="badInput" placeholder="Habit you're avoiding today">
+<input id="badInput" placeholder="Habit to avoid">
 <button onclick="addHabit('bad')">Add</button>
 <ul id="badList"></ul>
+<div class="progress"><div class="bar" id="badBar"></div></div>
 </div>
 
 </div>
+
+<!-- Confetti Canvas -->
+<canvas id="confettiCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
 
 <script>
-const GOOD="goodHabits";
-const BAD="badHabits";
-const STREAK="habitStreak";
-const POINTS="habitPoints";
+const GOOD="goodHabits", BAD="badHabits", STREAK="habitStreak", POINTS="habitPoints";
+
+const goodList=document.getElementById("goodList");
+const badList=document.getElementById("badList");
+const streakEl=document.getElementById("streak");
+const pointsEl=document.getElementById("points");
+const goodBar=document.getElementById("goodBar");
+const badBar=document.getElementById("badBar");
+const totalBar=document.getElementById("totalBar");
+const motivationEl=document.getElementById("motivation");
 
 load();
-updateStats();
+updateUI();
 
-/* -------- ADD HABITS -------- */
+/* ---------- ADD HABIT ---------- */
 function addHabit(type){
   const input=document.getElementById(type+"Input");
   if(!input.value) return;
-
   createHabit(input.value,false,type);
   save();
   input.value="";
@@ -161,83 +176,110 @@ function addHabit(type){
 function createHabit(text,checked,type){
   const li=document.createElement("li");
   if(checked) li.classList.add("checked");
-
   li.innerHTML=`
     <span>${text}</span>
-    <input type="checkbox" ${checked?"checked":""}>
+    <div>
+      <input type="checkbox" ${checked?"checked":""}>
+      <button class="edit" onclick="editHabit(this)">✏️</button>
+      <button class="delete" onclick="deleteHabit(this)">🗑️</button>
+    </div>
   `;
-
   li.querySelector("input").onchange=()=>{
     li.classList.toggle("checked");
-    updatePoints(type);
+    updateUI();
     save();
   };
-
-  document.getElementById(type+"List").appendChild(li);
+  if(type==="good") goodList.appendChild(li);
+  else badList.appendChild(li);
 }
 
-/* -------- SAVE/LOAD -------- */
+/* ---------- EDIT & DELETE ---------- */
+function editHabit(btn){
+  const span=btn.closest("li").querySelector("span");
+  const newText=prompt("Edit habit:",span.textContent);
+  if(newText) span.textContent=newText;
+  save();
+}
+
+function deleteHabit(btn){
+  btn.closest("li").remove();
+  updateUI();
+  save();
+}
+
+/* ---------- SAVE/LOAD ---------- */
 function save(){
-  const g=[...goodList.children].map(li=>({
-    text:li.querySelector("span").textContent,
-    checked:li.classList.contains("checked")
-  }));
-
-  const b=[...badList.children].map(li=>({
-    text:li.querySelector("span").textContent,
-    checked:li.classList.contains("checked")
-  }));
-
+  const g=[...goodList.children].map(li=>({text:li.querySelector("span").textContent,checked:li.classList.contains("checked")}));
+  const b=[...badList.children].map(li=>({text:li.querySelector("span").textContent,checked:li.classList.contains("checked")}));
   localStorage.setItem(GOOD,JSON.stringify(g));
   localStorage.setItem(BAD,JSON.stringify(b));
-  updateStats();
 }
 
+/* ---------- LOAD ---------- */
 function load(){
-  JSON.parse(localStorage.getItem(GOOD)||"[]")
-    .forEach(t=>createHabit(t.text,t.checked,"good"));
-
-  JSON.parse(localStorage.getItem(BAD)||"[]")
-    .forEach(t=>createHabit(t.text,t.checked,"bad"));
+  JSON.parse(localStorage.getItem(GOOD)||"[]").forEach(t=>createHabit(t.text,t.checked,"good"));
+  JSON.parse(localStorage.getItem(BAD)||"[]").forEach(t=>createHabit(t.text,t.checked,"bad"));
 }
 
-/* -------- GAMIFICATION -------- */
-function updatePoints(type){
-  let pts=parseInt(localStorage.getItem(POINTS)||0);
+/* ---------- UI UPDATE ---------- */
+function updateUI(){
+  let pts=0;
+  const totalGood=goodList.children.length;
+  const doneGood=[...goodList.children].filter(li=>li.classList.contains("checked")).length;
+  const totalBad=badList.children.length;
+  const doneBad=[...badList.children].filter(li=>li.classList.contains("checked")).length;
 
-  pts += type==="good"?10:15;
+  pts += doneGood*10 + doneBad*15;
+  pointsEl.textContent="⭐ Points: "+pts;
   localStorage.setItem(POINTS,pts);
+
+  goodBar.style.width=totalGood?((doneGood/totalGood)*100)+"%":"0%";
+  badBar.style.width=totalBad?((doneBad/totalBad)*100)+"%":"0%";
+  totalBar.style.width=( (doneGood+doneBad)/(totalGood+totalBad) *100 || 0 )+"%";
+
+  // Streak & motivation
+  const streak=parseInt(localStorage.getItem(STREAK)||0);
+  if(totalGood+totalBad>0 && doneGood+doneBad===totalGood+totalBad){
+    localStorage.setItem(STREAK,streak+1);
+    motivationEl.textContent="🎉 All habits done! Great job!";
+    launchConfetti();
+  } else if(doneGood+doneBad>0) motivationEl.textContent="Keep going, you're making progress!";
+  else motivationEl.textContent="Let's start your day strong!";
+  streakEl.textContent="🔥 Streak: "+localStorage.getItem(STREAK)||0+" days";
 }
 
-function updateStats(){
-  const pts=localStorage.getItem(POINTS)||0;
-  points.textContent="⭐ Points: "+pts;
-
-  const total=document.querySelectorAll("li").length;
-  const done=document.querySelectorAll(".checked").length;
-
-  bar.style.width=total?((done/total)*100)+"%":"0%";
-
-  let streak=parseInt(localStorage.getItem(STREAK)||0);
-  if(done===total && total>0){
-    localStorage.setItem(STREAK,++streak);
-  }
-  streakEl.textContent="🔥 Streak: "+streak+" days";
-}
-
-/* -------- DARK MODE -------- */
+/* ---------- DARK MODE ---------- */
 function toggleDark(){
   document.body.classList.toggle("dark");
-  localStorage.setItem("darkMode",
-    document.body.classList.contains("dark"));
+  localStorage.setItem("darkMode",document.body.classList.contains("dark"));
+}
+if(localStorage.getItem("darkMode")==="true") document.body.classList.add("dark");
+
+/* ---------- CONFETTI ---------- */
+const confettiCanvas=document.getElementById("confettiCanvas");
+const ctx=confettiCanvas.getContext("2d");
+let confettiParticles=[];
+
+function launchConfetti(){
+  confettiCanvas.width=window.innerWidth;
+  confettiCanvas.height=window.innerHeight;
+  confettiParticles=[];
+  for(let i=0;i<100;i++){
+    confettiParticles.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,dx:(Math.random()-0.5)*5,dy:Math.random()*5+2,color:`hsl(${Math.random()*360},100%,50%)`,size:Math.random()*6+4});
+  }
+  animateConfetti();
 }
 
-if(localStorage.getItem("darkMode")==="true"){
-  document.body.classList.add("dark");
+function animateConfetti(){
+  ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  confettiParticles.forEach(p=>{
+    p.x+=p.dx; p.y+=p.dy;
+    if(p.y>confettiCanvas.height)p.y=0;
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+  });
+  requestAnimationFrame(animateConfetti);
 }
-
-const streakEl=document.getElementById("streak");
-const points=document.getElementById("points");
 </script>
 </body>
 </html>
