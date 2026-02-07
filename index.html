@@ -1,111 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Break Habits</title>
 
 <style>
 :root{
-  --bg:#0f1115;
-  --card:rgba(255,255,255,0.06);
-  --accent:#4CAF50;
+  --bg:#0b0c10;
+  --card:rgba(255,255,255,.06);
+  --accent:#34C759;
+  --danger:#ff453a;
   --text:#f2f2f7;
 }
 
 body{
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;
-  background:var(--bg);
+  font-family:-apple-system,BlinkMacSystemFont,
+  "SF Pro Text",sans-serif;
+  background:linear-gradient(#0b0c10,#16181f);
   color:var(--text);
 }
 
+/* HEADER */
+.header{
+  position:sticky;
+  top:0;
+  backdrop-filter:blur(20px);
+  background:rgba(10,12,16,.7);
+  padding:16px;
+  text-align:center;
+  font-weight:600;
+  z-index:10;
+}
+
+/* MAIN */
 .container{
   max-width:520px;
   margin:auto;
-  padding:18px;
+  padding:16px 16px 90px;
 }
 
-/* iPhone-style glass cards */
+/* CARDS */
 .card{
   background:var(--card);
-  backdrop-filter: blur(14px);
-  border-radius:18px;
-  padding:16px;
-  margin-bottom:14px;
-  box-shadow:0 4px 18px rgba(0,0,0,.25);
+  backdrop-filter:blur(24px);
+  border-radius:20px;
+  padding:18px;
+  margin-bottom:16px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35);
 }
 
-h2{
-  text-align:center;
-  font-weight:600;
-}
-
+/* INPUTS */
 input,textarea{
   width:100%;
   padding:14px;
-  border-radius:12px;
+  border-radius:14px;
   border:none;
-  background:rgba(255,255,255,0.08);
+  background:rgba(255,255,255,.08);
   color:var(--text);
-  margin-bottom:12px;
   font-size:16px;
-  box-sizing:border-box;
+  margin-bottom:10px;
 }
 
+/* BUTTONS */
 button{
-  padding:12px;
+  width:100%;
+  padding:14px;
   border:none;
-  border-radius:12px;
-  margin:5px 0;
+  border-radius:16px;
+  margin:6px 0;
   font-weight:600;
-  font-size:15px;
-  cursor:pointer;
+  font-size:16px;
 }
 
 .primary{background:var(--accent);color:white;}
-.secondary{background:#2a2d36;color:white;}
-.danger{background:#a33;color:white;}
+.secondary{background:rgba(255,255,255,.1);color:white;}
+.danger{background:var(--danger);color:white;}
 
-.small{font-size:13px;opacity:.85;}
-.points{color:#9effa7;font-size:13px;}
-
-canvas{
-  width:100%;
-  background:#16181f;
-  border-radius:12px;
-  margin-top:8px;
+button:active{
+  transform:scale(.97);
 }
+
+/* FLOATING ADD BUTTON */
+.fab{
+  position:fixed;
+  bottom:80px;
+  right:20px;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:var(--accent);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:30px;
+  color:white;
+  box-shadow:0 8px 20px rgba(0,0,0,.4);
+}
+
+/* TAB BAR */
+.tabbar{
+  position:fixed;
+  bottom:0;
+  width:100%;
+  background:rgba(20,22,28,.9);
+  backdrop-filter:blur(20px);
+  display:flex;
+  justify-content:space-around;
+  padding:12px 0;
+}
+
+.tab{
+  opacity:.6;
+}
+
+.tab.active{
+  opacity:1;
+  font-weight:600;
+}
+
+/* HIDDEN SCREENS */
+.screen{display:none;}
+.screen.active{display:block;}
+
+.small{opacity:.75;font-size:14px;}
 </style>
 </head>
 
 <body>
+
+<div class="header">🚫 Breaking Habits</div>
+
 <div class="container">
 
-<h2>🚫 Breaking Habits</h2>
+<!-- HABITS SCREEN -->
+<div id="habitsScreen" class="screen active">
+<div id="habits"></div>
+</div>
 
-<!-- Daily Devotional -->
-<div class="card" id="devotional"></div>
+<!-- JOURNAL SCREEN -->
+<div id="journalScreen" class="screen">
+<div id="journalList"></div>
+</div>
 
-<!-- Add Habit -->
+<!-- DEVOTIONAL SCREEN -->
+<div id="devotionalScreen" class="screen">
+<div id="devotional" class="card"></div>
+</div>
+
+</div>
+
+<!-- Floating Add -->
+<div class="fab" onclick="toggleAdd()">+</div>
+
+<!-- Add Habit Modal -->
+<div id="addModal" class="screen">
+<div class="container">
 <div class="card">
 <input id="habitName" placeholder="Habit I'm quitting"/>
-<textarea id="habitWhy" placeholder="Why do you want to quit?"></textarea>
-<button class="primary" onclick="addHabit()">Add Habit</button>
+<textarea id="habitWhy"
+placeholder="Why do you want to quit?"></textarea>
+<button class="primary" onclick="addHabit()">Add</button>
+<button class="secondary" onclick="toggleAdd()">Cancel</button>
+</div>
+</div>
 </div>
 
-<div id="encourage" class="card small">
-Stay watchful and prayerful today.
-</div>
-
-<div id="habits"></div>
-
+<!-- Tab Bar -->
+<div class="tabbar">
+<div class="tab active" onclick="showTab('habits')">Habits</div>
+<div class="tab" onclick="showTab('journal')">Journal</div>
+<div class="tab" onclick="showTab('devotional')">Devotional</div>
 </div>
 
 <script>
-let habits = JSON.parse(localStorage.getItem("badHabits")||"[]");
+let habits=JSON.parse(localStorage.getItem("badHabits")||"[]");
 
-/* Short accurate ESV quotes */
 const verses=[
 "Philippians 4:13 — I can do all things through him who strengthens me.",
 "James 4:7 — Resist the devil, and he will flee from you.",
@@ -113,123 +184,103 @@ const verses=[
 "John 16:33 — Take heart; I have overcome the world."
 ];
 
-const reflections=[
-"Growth often comes quietly. Stay faithful today.",
-"Temptation passes. Character remains.",
-"God's strength shows most when ours feels weakest.",
-"Small obedience builds big freedom."
-];
-
-function dailyDevotional(){
- const day=Math.floor(Date.now()/86400000);
- const v=verses[day%verses.length];
- const r=reflections[day%reflections.length];
- document.getElementById("devotional").innerHTML=
- "<b>Daily Devotional</b><br><br>"+v+
- "<br><br><span class='small'>"+r+"</span>";
+function devotional(){
+ const d=Math.floor(Date.now()/86400000);
+ devotional.innerHTML="<b>Daily Devotional</b><br><br>"+
+ verses[d%verses.length];
 }
-dailyDevotional();
+devotional();
 
 function save(){
  localStorage.setItem("badHabits",JSON.stringify(habits));
 }
 
-function showEncourage(text){
- document.getElementById("encourage").innerHTML=text;
+function toggleAdd(){
+ addModal.classList.toggle("active");
 }
 
 function addHabit(){
- const name=document.getElementById("habitName").value.trim();
- const why=document.getElementById("habitWhy").value.trim();
- if(!name) return;
+ const n=habitName.value.trim();
+ const w=habitWhy.value.trim();
+ if(!n)return;
 
- habits.push({
-  name,why,
-  streak:0,longest:0,
-  slips:0,urges:0,
-  points:0,
-  history:[],
-  journal:[]
- });
-
- document.getElementById("habitName").value="";
- document.getElementById("habitWhy").value="";
+ habits.push({name:n,why:w,streak:0,slips:0,urges:0,journal:[]});
  save();
+ habitName.value="";
+ habitWhy.value="";
+ toggleAdd();
  render();
 }
 
 function resisted(i){
- const h=habits[i];
- h.streak++;
- h.longest=Math.max(h.longest,h.streak);
- h.points+=10;
- h.history.push({s:h.streak});
- save();
- render();
-}
-
-function slipped(i){
- const h=habits[i];
- h.slips++;
- h.streak=0;
- showEncourage("Grace covers growth. Reflect and continue.<br>"+verses[Math.floor(Math.random()*verses.length)]);
- render(true,i);
-}
-
-function saveJournal(i){
- const text=document.getElementById("journal"+i).value;
- if(text){
-  habits[i].journal.push(text);
-  save();
-  showEncourage("Reflection saved. Growth continues.");
- }
+ habits[i].streak++;
+ save(); render();
 }
 
 function urge(i){
- const h=habits[i];
- h.urges++;
- showEncourage("Pause 2 minutes.<br>"+h.why+"<br><br>"+verses[Math.floor(Math.random()*verses.length)]);
- save();
- render();
+ habits[i].urges++;
+ alert("Pause. Remember why:\n\n"+habits[i].why);
+ save(); render();
+}
+
+function slipped(i){
+ habits[i].slips++;
+ habits[i].streak=0;
+ const note=prompt("Reflection?");
+ if(note) habits[i].journal.push(note);
+ save(); render();
 }
 
 function deleteHabit(i){
  habits.splice(i,1);
- save();
- render();
+ save(); render();
 }
 
-function level(p){return Math.floor(p/100)+1;}
-
-function render(showJournal=false,idx=null){
- const container=document.getElementById("habits");
- container.innerHTML="";
+function render(){
+ habits.innerHTML="";
+ journalList.innerHTML="";
 
  habits.forEach((h,i)=>{
- container.innerHTML+=`
+ habits.innerHTML+=`
  <div class="card">
  <b>${h.name}</b>
- <div class="small">🔥 ${h.streak} day streak</div>
- <div class="small">🏆 Longest: ${h.longest}</div>
- <div class="small">⚠️ Slips: ${h.slips}</div>
- <div class="small">🧠 Urges: ${h.urges}</div>
- <div class="points">⭐ Level ${level(h.points)}</div>
+ <div class="small">🔥 ${h.streak} days</div>
+ <div class="small">⚠️ Slips ${h.slips}</div>
+ <div class="small">🧠 Urges ${h.urges}</div>
 
- <button class="primary" onclick="resisted(${i})">Resisted Today</button>
- <button class="secondary" onclick="urge(${i})">I'm Tempted</button>
- <button class="secondary" onclick="slipped(${i})">I Slipped</button>
- <button class="danger" onclick="deleteHabit(${i})">Delete</button>
+ <button class="primary" onclick="resisted(${i})">
+ Resisted</button>
 
- ${showJournal && idx===i ? `
- <textarea id="journal${i}" placeholder="What led to the slip? What can help next time?"></textarea>
- <button class="primary" onclick="saveJournal(${i})">Save Reflection</button>
- ` : ""}
- </div>
- `;
+ <button class="secondary" onclick="urge(${i})">
+ Tempted</button>
+
+ <button class="secondary" onclick="slipped(${i})">
+ Slipped</button>
+
+ <button class="danger" onclick="deleteHabit(${i})">
+ Delete</button>
+ </div>`;
+
+ h.journal.forEach(j=>{
+ journalList.innerHTML+=`
+ <div class="card small">${j}</div>`;
+ });
  });
 }
-
 render();
+
+function showTab(t){
+ document.querySelectorAll(".screen")
+ .forEach(s=>s.classList.remove("active"));
+
+ document.getElementById(t+"Screen")
+ .classList.add("active");
+
+ document.querySelectorAll(".tab")
+ .forEach(tab=>tab.classList.remove("active"));
+
+ event.target.classList.add("active");
+}
 </script>
 </body>
 </html>
