@@ -7,15 +7,15 @@
 
 <style>
 :root{
-  --bg:#121212;
-  --card:#1e1e1e;
+  --bg:#0f1115;
+  --card:rgba(255,255,255,0.06);
   --accent:#4CAF50;
-  --text:#eee;
+  --text:#f2f2f7;
 }
 
 body{
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;
   background:var(--bg);
   color:var(--text);
 }
@@ -23,47 +23,57 @@ body{
 .container{
   max-width:520px;
   margin:auto;
-  padding:16px;
+  padding:18px;
 }
 
+/* iPhone-style glass cards */
 .card{
   background:var(--card);
-  padding:14px;
-  border-radius:14px;
-  margin-bottom:12px;
+  backdrop-filter: blur(14px);
+  border-radius:18px;
+  padding:16px;
+  margin-bottom:14px;
+  box-shadow:0 4px 18px rgba(0,0,0,.25);
 }
 
-input, textarea{
+h2{
+  text-align:center;
+  font-weight:600;
+}
+
+input,textarea{
   width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #333;
-  background:#1e1e1e;
-  color:#eee;
+  padding:14px;
+  border-radius:12px;
+  border:none;
+  background:rgba(255,255,255,0.08);
+  color:var(--text);
+  margin-bottom:12px;
+  font-size:16px;
   box-sizing:border-box;
-  margin-bottom:10px;
 }
 
 button{
-  padding:10px;
+  padding:12px;
   border:none;
-  border-radius:10px;
-  margin:4px 0;
-  font-weight:bold;
+  border-radius:12px;
+  margin:5px 0;
+  font-weight:600;
+  font-size:15px;
   cursor:pointer;
 }
 
 .primary{background:var(--accent);color:white;}
-.secondary{background:#333;color:white;}
+.secondary{background:#2a2d36;color:white;}
 .danger{background:#a33;color:white;}
 
-.small{font-size:13px;opacity:.8;}
-.points{color:#8f8;font-size:13px;}
+.small{font-size:13px;opacity:.85;}
+.points{color:#9effa7;font-size:13px;}
 
 canvas{
   width:100%;
-  background:#1e1e1e;
-  border-radius:10px;
+  background:#16181f;
+  border-radius:12px;
   margin-top:8px;
 }
 </style>
@@ -74,18 +84,19 @@ canvas{
 
 <h2>🚫 Breaking Habits</h2>
 
+<!-- Daily Devotional -->
+<div class="card" id="devotional"></div>
+
+<!-- Add Habit -->
 <div class="card">
-<input id="habitName" placeholder="Habit I'm quitting" />
-<textarea id="habitWhy" placeholder="Why do you want to quit? (powerful for urges)"></textarea>
+<input id="habitName" placeholder="Habit I'm quitting"/>
+<textarea id="habitWhy" placeholder="Why do you want to quit?"></textarea>
 <button class="primary" onclick="addHabit()">Add Habit</button>
 </div>
 
-<label>
-<input type="checkbox" id="faithToggle" onchange="toggleFaith()" />
-Faith encouragement mode
-</label>
-
-<div id="encourage" class="card small" style="display:none;"></div>
+<div id="encourage" class="card small">
+Stay watchful and prayerful today.
+</div>
 
 <div id="habits"></div>
 
@@ -93,58 +104,56 @@ Faith encouragement mode
 
 <script>
 let habits = JSON.parse(localStorage.getItem("badHabits")||"[]");
-let faithMode = JSON.parse(localStorage.getItem("faithMode")||"false");
 
+/* Short accurate ESV quotes */
 const verses=[
-"1 Cor 10:13 — God provides a way out of temptation.",
-"Phil 4:13 — I can do all things through Christ.",
-"Gal 6:9 — Don’t grow weary doing good.",
-"Psalm 34:17 — The Lord hears and delivers.",
-"2 Tim 1:7 — God gave power, not fear."
+"Philippians 4:13 — I can do all things through him who strengthens me.",
+"James 4:7 — Resist the devil, and he will flee from you.",
+"2 Timothy 1:7 — God gave us a spirit not of fear but of power, love, self-control.",
+"John 16:33 — Take heart; I have overcome the world."
 ];
 
-document.getElementById("faithToggle").checked=faithMode;
+const reflections=[
+"Growth often comes quietly. Stay faithful today.",
+"Temptation passes. Character remains.",
+"God's strength shows most when ours feels weakest.",
+"Small obedience builds big freedom."
+];
+
+function dailyDevotional(){
+ const day=Math.floor(Date.now()/86400000);
+ const v=verses[day%verses.length];
+ const r=reflections[day%reflections.length];
+ document.getElementById("devotional").innerHTML=
+ "<b>Daily Devotional</b><br><br>"+v+
+ "<br><br><span class='small'>"+r+"</span>";
+}
+dailyDevotional();
 
 function save(){
  localStorage.setItem("badHabits",JSON.stringify(habits));
- localStorage.setItem("faithMode",faithMode);
-}
-
-function toggleFaith(){
- faithMode=document.getElementById("faithToggle").checked;
- save();
-}
-
-function randomVerse(){
- return verses[Math.floor(Math.random()*verses.length)];
 }
 
 function showEncourage(text){
- const box=document.getElementById("encourage");
- box.style.display="block";
- box.innerHTML=text;
+ document.getElementById("encourage").innerHTML=text;
 }
 
 function addHabit(){
  const name=document.getElementById("habitName").value.trim();
  const why=document.getElementById("habitWhy").value.trim();
-
  if(!name) return;
 
  habits.push({
-  name,
-  why,
-  streak:0,
-  longest:0,
-  slips:0,
-  urges:0,
+  name,why,
+  streak:0,longest:0,
+  slips:0,urges:0,
   points:0,
-  history:[]
+  history:[],
+  journal:[]
  });
 
  document.getElementById("habitName").value="";
  document.getElementById("habitWhy").value="";
-
  save();
  render();
 }
@@ -154,8 +163,7 @@ function resisted(i){
  h.streak++;
  h.longest=Math.max(h.longest,h.streak);
  h.points+=10;
- h.history.push({s:h.streak,sl:h.slips});
-
+ h.history.push({s:h.streak});
  save();
  render();
 }
@@ -164,26 +172,23 @@ function slipped(i){
  const h=habits[i];
  h.slips++;
  h.streak=0;
- h.history.push({s:h.streak,sl:h.slips});
+ showEncourage("Grace covers growth. Reflect and continue.<br>"+verses[Math.floor(Math.random()*verses.length)]);
+ render(true,i);
+}
 
- if(faithMode) showEncourage(randomVerse());
- save();
- render();
+function saveJournal(i){
+ const text=document.getElementById("journal"+i).value;
+ if(text){
+  habits[i].journal.push(text);
+  save();
+  showEncourage("Reflection saved. Growth continues.");
+ }
 }
 
 function urge(i){
  const h=habits[i];
  h.urges++;
-
- let msg="⏳ Urge logged. Wait 2 minutes.<br>"+h.why;
- if(faithMode) msg+="<br><br>"+randomVerse();
-
- showEncourage(msg);
-
- setTimeout(()=>{
-  showEncourage("Urges pass. You're stronger than it.");
- },120000);
-
+ showEncourage("Pause 2 minutes.<br>"+h.why+"<br><br>"+verses[Math.floor(Math.random()*verses.length)]);
  save();
  render();
 }
@@ -196,18 +201,7 @@ function deleteHabit(i){
 
 function level(p){return Math.floor(p/100)+1;}
 
-function drawChart(canvas,data){
- const ctx=canvas.getContext("2d");
- ctx.clearRect(0,0,canvas.width,canvas.height);
-
- ctx.beginPath();
- data.slice(-20).forEach((d,i)=>{
-  ctx.lineTo(i*15,80-d.s*5);
- });
- ctx.stroke();
-}
-
-function render(){
+function render(showJournal=false,idx=null){
  const container=document.getElementById("habits");
  container.innerHTML="";
 
@@ -215,25 +209,23 @@ function render(){
  container.innerHTML+=`
  <div class="card">
  <b>${h.name}</b>
- <div class="small">🔥 Streak: ${h.streak}</div>
+ <div class="small">🔥 ${h.streak} day streak</div>
  <div class="small">🏆 Longest: ${h.longest}</div>
  <div class="small">⚠️ Slips: ${h.slips}</div>
  <div class="small">🧠 Urges: ${h.urges}</div>
- <div class="points">⭐ Level ${level(h.points)} (${h.points} pts)</div>
+ <div class="points">⭐ Level ${level(h.points)}</div>
 
  <button class="primary" onclick="resisted(${i})">Resisted Today</button>
  <button class="secondary" onclick="urge(${i})">I'm Tempted</button>
  <button class="secondary" onclick="slipped(${i})">I Slipped</button>
  <button class="danger" onclick="deleteHabit(${i})">Delete</button>
 
- <canvas id="chart${i}" width="300" height="100"></canvas>
+ ${showJournal && idx===i ? `
+ <textarea id="journal${i}" placeholder="What led to the slip? What can help next time?"></textarea>
+ <button class="primary" onclick="saveJournal(${i})">Save Reflection</button>
+ ` : ""}
  </div>
  `;
- });
-
- habits.forEach((h,i)=>{
- const c=document.getElementById("chart"+i);
- if(c) drawChart(c,h.history);
  });
 }
 
