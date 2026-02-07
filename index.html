@@ -1,311 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gamified Habits</title>
-<link rel="manifest" href="manifest.json">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Break Habits</title>
 
 <style>
 :root{
-  --bg:#f2f2f7;
-  --card:#fff;
-  --text:#111;
+  --bg:#121212;
+  --card:#1e1e1e;
   --accent:#4CAF50;
-  --bad:#e53935;
-}
-
-.dark{
-  --bg:#1c1c1e;
-  --card:#2c2c2e;
-  --text:#f2f2f7;
+  --text:#eee;
 }
 
 body{
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
   background:var(--bg);
   color:var(--text);
-  display:flex;
-  justify-content:center;
 }
 
-.app{
-  width:100%;
-  max-width:480px;
-  padding:15px;
+.container{
+  max-width:520px;
+  margin:auto;
+  padding:16px;
 }
 
 .card{
   background:var(--card);
-  padding:15px;
-  border-radius:16px;
-  margin-bottom:15px;
+  padding:14px;
+  border-radius:14px;
+  margin-bottom:12px;
 }
 
-h2,h3{margin-top:0;}
-
-input,select,button{
+input, textarea{
   width:100%;
-  box-sizing:border-box;
   padding:12px;
   border-radius:10px;
-  border:none;
-  margin:6px 0;
-  font-size:16px;
+  border:1px solid #333;
+  background:#1e1e1e;
+  color:#eee;
+  box-sizing:border-box;
+  margin-bottom:10px;
 }
-
-input, select {background:#e0e0e0;}
-.dark input, .dark select {
-  background:#2c2c2e;
-  color:#f2f2f7;
-  border:1px solid #444;
-}
-.dark input::placeholder, .dark select::placeholder {color:#aaa;}
 
 button{
-  background:var(--accent);
-  color:white;
-  font-weight:bold;
-}
-
-ul{padding:0; margin:0;}
-li{
-  list-style:none;
   padding:10px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  border-bottom:1px solid #ccc3;
-  border-radius:8px;
-  margin-bottom:5px;
-}
-
-.checked span{text-decoration:line-through; opacity:.6;}
-
-.progress{
-  height:10px;
-  background:#ccc3;
+  border:none;
   border-radius:10px;
-  overflow:hidden;
-  margin-top:5px;
-}
-
-.bar{
-  height:100%;
-  background:var(--accent);
-  width:0%;
-  transition: width .3s;
-}
-
-button.delete{
-  background:#e53935;
-  margin-left:8px;
-}
-button.edit{
-  background:#2196F3;
-  margin-left:5px;
-}
-
-.motivation{
-  text-align:center;
-  margin-top:5px;
+  margin:4px 0;
   font-weight:bold;
-  color:var(--accent);
+  cursor:pointer;
+}
+
+.primary{background:var(--accent);color:white;}
+.secondary{background:#333;color:white;}
+.danger{background:#a33;color:white;}
+
+.small{font-size:13px;opacity:.8;}
+.points{color:#8f8;font-size:13px;}
+
+canvas{
+  width:100%;
+  background:#1e1e1e;
+  border-radius:10px;
+  margin-top:8px;
 }
 </style>
 </head>
 
 <body>
-<div class="app">
+<div class="container">
+
+<h2>🚫 Breaking Habits</h2>
 
 <div class="card">
-<h2>Gamified Habits</h2>
-<button onclick="toggleDark()">Toggle Dark Mode</button>
-<h3 id="streak"></h3>
-<h3 id="points"></h3>
-<div class="progress"><div class="bar" id="totalBar"></div></div>
-<div class="motivation" id="motivation"></div>
+<input id="habitName" placeholder="Habit I'm quitting" />
+<textarea id="habitWhy" placeholder="Why do you want to quit? (powerful for urges)"></textarea>
+<button class="primary" onclick="addHabit()">Add Habit</button>
 </div>
 
-<div class="card">
-<h3>Good Habits ✅</h3>
-<input id="goodInput" placeholder="New habit/task">
-<button onclick="addHabit('good')">Add</button>
-<ul id="goodList"></ul>
-<div class="progress"><div class="bar" id="goodBar"></div></div>
-</div>
+<label>
+<input type="checkbox" id="faithToggle" onchange="toggleFaith()" />
+Faith encouragement mode
+</label>
 
-<div class="card">
-<h3>Habits To Avoid 🚫</h3>
-<input id="badInput" placeholder="Habit to avoid">
-<button onclick="addHabit('bad')">Add</button>
-<ul id="badList"></ul>
-<div class="progress"><div class="bar" id="badBar"></div></div>
-</div>
+<div id="encourage" class="card small" style="display:none;"></div>
+
+<div id="habits"></div>
 
 </div>
-
-<!-- Confetti Canvas -->
-<canvas id="confettiCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
 
 <script>
-const GOOD="goodHabits", BAD="badHabits", STREAK="habitStreak", POINTS="habitPoints";
+let habits = JSON.parse(localStorage.getItem("badHabits")||"[]");
+let faithMode = JSON.parse(localStorage.getItem("faithMode")||"false");
 
-const goodList=document.getElementById("goodList");
-const badList=document.getElementById("badList");
-const streakEl=document.getElementById("streak");
-const pointsEl=document.getElementById("points");
-const goodBar=document.getElementById("goodBar");
-const badBar=document.getElementById("badBar");
-const totalBar=document.getElementById("totalBar");
-const motivationEl=document.getElementById("motivation");
+const verses=[
+"1 Cor 10:13 — God provides a way out of temptation.",
+"Phil 4:13 — I can do all things through Christ.",
+"Gal 6:9 — Don’t grow weary doing good.",
+"Psalm 34:17 — The Lord hears and delivers.",
+"2 Tim 1:7 — God gave power, not fear."
+];
 
-load();
-updateUI();
+document.getElementById("faithToggle").checked=faithMode;
 
-/* ---------- ADD HABIT ---------- */
-function addHabit(type){
-  const input=document.getElementById(type+"Input");
-  if(!input.value) return;
-  createHabit(input.value,false,type);
-  save();
-  input.value="";
-}
-
-function createHabit(text,checked,type){
-  const li=document.createElement("li");
-  if(checked) li.classList.add("checked");
-  li.innerHTML=`
-    <span>${text}</span>
-    <div>
-      <input type="checkbox" ${checked?"checked":""}>
-      <button class="edit" onclick="editHabit(this)">✏️</button>
-      <button class="delete" onclick="deleteHabit(this)">🗑️</button>
-    </div>
-  `;
-  li.querySelector("input").onchange=()=>{
-    li.classList.toggle("checked");
-    updateUI();
-    save();
-  };
-  if(type==="good") goodList.appendChild(li);
-  else badList.appendChild(li);
-}
-
-/* ---------- EDIT & DELETE ---------- */
-function editHabit(btn){
-  const span=btn.closest("li").querySelector("span");
-  const newText=prompt("Edit habit:",span.textContent);
-  if(newText) span.textContent=newText;
-  save();
-}
-
-function deleteHabit(btn){
-  btn.closest("li").remove();
-  updateUI();
-  save();
-}
-
-/* ---------- SAVE/LOAD ---------- */
 function save(){
-  const g=[...goodList.children].map(li=>({text:li.querySelector("span").textContent,checked:li.classList.contains("checked")}));
-  const b=[...badList.children].map(li=>({text:li.querySelector("span").textContent,checked:li.classList.contains("checked")}));
-  localStorage.setItem(GOOD,JSON.stringify(g));
-  localStorage.setItem(BAD,JSON.stringify(b));
+ localStorage.setItem("badHabits",JSON.stringify(habits));
+ localStorage.setItem("faithMode",faithMode);
 }
 
-/* ---------- LOAD ---------- */
-function load(){
-  JSON.parse(localStorage.getItem(GOOD)||"[]").forEach(t=>createHabit(t.text,t.checked,"good"));
-  JSON.parse(localStorage.getItem(BAD)||"[]").forEach(t=>createHabit(t.text,t.checked,"bad"));
+function toggleFaith(){
+ faithMode=document.getElementById("faithToggle").checked;
+ save();
 }
 
-/* ---------- UI UPDATE ---------- */
-function updateUI(){
-  let pts=0;
-  const totalGood=goodList.children.length;
-  const doneGood=[...goodList.children].filter(li=>li.classList.contains("checked")).length;
-  const totalBad=badList.children.length;
-  const doneBad=[...badList.children].filter(li=>li.classList.contains("checked")).length;
-
-  pts += doneGood*10 + doneBad*15;
-  pointsEl.textContent="⭐ Points: "+pts;
-  localStorage.setItem(POINTS,pts);
-
-  goodBar.style.width=totalGood?((doneGood/totalGood)*100)+"%":"0%";
-  badBar.style.width=totalBad?((doneBad/totalBad)*100)+"%":"0%";
-  totalBar.style.width=( (doneGood+doneBad)/(totalGood+totalBad) *100 || 0 )+"%";
-
-  // Streak & motivation
-  const streak=parseInt(localStorage.getItem(STREAK)||0);
-  if(totalGood+totalBad>0 && doneGood+doneBad===totalGood+totalBad){
-    localStorage.setItem(STREAK,streak+1);
-    motivationEl.textContent="🎉 All habits done! Great job!";
-    launchConfetti();
-  } else if(doneGood+doneBad>0) motivationEl.textContent="Keep going, you're making progress!";
-  else motivationEl.textContent="Let's start your day strong!";
-  streakEl.textContent="🔥 Streak: "+localStorage.getItem(STREAK)||0+" days";
+function randomVerse(){
+ return verses[Math.floor(Math.random()*verses.length)];
 }
 
-/* ---------- DARK MODE ---------- */
-function toggleDark(){
-  document.body.classList.toggle("dark");
-  localStorage.setItem("darkMode",document.body.classList.contains("dark"));
+function showEncourage(text){
+ const box=document.getElementById("encourage");
+ box.style.display="block";
+ box.innerHTML=text;
 }
-if(localStorage.getItem("darkMode")==="true") document.body.classList.add("dark");
 
-/* ---------- CONFETTI ---------- */
-const confettiCanvas = document.getElementById("confettiCanvas");
-const ctx = confettiCanvas.getContext("2d");
-let confettiParticles = [];
-let confettiActive = false;
+function addHabit(){
+ const name=document.getElementById("habitName").value.trim();
+ const why=document.getElementById("habitWhy").value.trim();
 
-function launchConfetti(){
-  if(confettiActive) return; // prevent stacking
-  confettiActive = true;
+ if(!name) return;
 
-  confettiCanvas.width = window.innerWidth;
-  confettiCanvas.height = window.innerHeight;
+ habits.push({
+  name,
+  why,
+  streak:0,
+  longest:0,
+  slips:0,
+  urges:0,
+  points:0,
+  history:[]
+ });
 
-  confettiParticles = [];
-  for(let i=0;i<100;i++){
-    confettiParticles.push({
-      x: Math.random()*window.innerWidth,
-      y: Math.random()*window.innerHeight,
-      dx: (Math.random()-0.5)*5,
-      dy: Math.random()*5+2,
-      color: `hsl(${Math.random()*360},100%,50%)`,
-      size: Math.random()*6+4
-    });
-  }
+ document.getElementById("habitName").value="";
+ document.getElementById("habitWhy").value="";
 
-  let start = null;
-  const duration = 3000; // confetti lasts 3 seconds
-
-  function animate(timestamp){
-    if(!start) start = timestamp;
-    const elapsed = timestamp - start;
-
-    ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
-    confettiParticles.forEach(p=>{
-      p.x += p.dx;
-      p.y += p.dy;
-      if(p.y > confettiCanvas.height) p.y = 0;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x,p.y,p.size,p.size);
-    });
-
-    if(elapsed < duration){
-      requestAnimationFrame(animate);
-    } else {
-      ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
-      confettiActive = false;
-    }
-  }
-
-  requestAnimationFrame(animate);
+ save();
+ render();
 }
+
+function resisted(i){
+ const h=habits[i];
+ h.streak++;
+ h.longest=Math.max(h.longest,h.streak);
+ h.points+=10;
+ h.history.push({s:h.streak,sl:h.slips});
+
+ save();
+ render();
+}
+
+function slipped(i){
+ const h=habits[i];
+ h.slips++;
+ h.streak=0;
+ h.history.push({s:h.streak,sl:h.slips});
+
+ if(faithMode) showEncourage(randomVerse());
+ save();
+ render();
+}
+
+function urge(i){
+ const h=habits[i];
+ h.urges++;
+
+ let msg="⏳ Urge logged. Wait 2 minutes.<br>"+h.why;
+ if(faithMode) msg+="<br><br>"+randomVerse();
+
+ showEncourage(msg);
+
+ setTimeout(()=>{
+  showEncourage("Urges pass. You're stronger than it.");
+ },120000);
+
+ save();
+ render();
+}
+
+function deleteHabit(i){
+ habits.splice(i,1);
+ save();
+ render();
+}
+
+function level(p){return Math.floor(p/100)+1;}
+
+function drawChart(canvas,data){
+ const ctx=canvas.getContext("2d");
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ ctx.beginPath();
+ data.slice(-20).forEach((d,i)=>{
+  ctx.lineTo(i*15,80-d.s*5);
+ });
+ ctx.stroke();
+}
+
+function render(){
+ const container=document.getElementById("habits");
+ container.innerHTML="";
+
+ habits.forEach((h,i)=>{
+ container.innerHTML+=`
+ <div class="card">
+ <b>${h.name}</b>
+ <div class="small">🔥 Streak: ${h.streak}</div>
+ <div class="small">🏆 Longest: ${h.longest}</div>
+ <div class="small">⚠️ Slips: ${h.slips}</div>
+ <div class="small">🧠 Urges: ${h.urges}</div>
+ <div class="points">⭐ Level ${level(h.points)} (${h.points} pts)</div>
+
+ <button class="primary" onclick="resisted(${i})">Resisted Today</button>
+ <button class="secondary" onclick="urge(${i})">I'm Tempted</button>
+ <button class="secondary" onclick="slipped(${i})">I Slipped</button>
+ <button class="danger" onclick="deleteHabit(${i})">Delete</button>
+
+ <canvas id="chart${i}" width="300" height="100"></canvas>
+ </div>
+ `;
+ });
+
+ habits.forEach((h,i)=>{
+ const c=document.getElementById("chart"+i);
+ if(c) drawChart(c,h.history);
+ });
+}
+
+render();
 </script>
 </body>
 </html>
